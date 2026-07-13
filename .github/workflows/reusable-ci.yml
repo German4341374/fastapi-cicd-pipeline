@@ -1,0 +1,123 @@
+name: Reusable CI
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    name: Formatting and linting
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12.13"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - run: python -m pip install --disable-pip-version-check -e '.[dev]'
+      - name: Check formatting and lint
+        run: |
+          ruff format --check .
+          ruff check .
+
+  unit-tests:
+    name: Unit tests and coverage
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12.13"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - run: python -m pip install --disable-pip-version-check -e '.[dev]'
+      - name: Run tests with coverage
+        run: pytest tests --cov=app --cov-report=xml --cov-report=term --junitxml=unit-results.xml
+      - uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-results-${{ github.run_id }}
+          path: |
+            coverage.xml
+            unit-results.xml
+          retention-days: 14
+
+  integration-tests:
+    name: Integration tests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12.13"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - run: python -m pip install --disable-pip-version-check -e '.[dev]'
+      - name: Run assembled HTTP tests
+        run: pytest tests/integration -m integration --junitxml=integration-results.xml
+      - uses: actions/upload-artifact@v4
+        with:
+          name: integration-test-results-${{ github.run_id }}
+          path: integration-results.xml
+          retention-days: 14
+
+  source-security:
+    name: Dependency and secret scanning
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12.13"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - run: python -m pip install --disable-pip-version-check -e '.[dev]'
+      - name: Audit Python dependencies
+        run: pip-audit
+      - name: Scan Git history for secrets
+        run: >-
+          docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:v8.24.2
+          detect --source=/repo --no-banner --redact --verbose
+
+  container-security:
+    name: Container build, scan, and SBOM
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Lint Dockerfile
+        run: docker run --rm -i hadolint/hadolint:v2.12.0-alpine < Dockerfile
+      - name: Build image
+        run: docker build --target production -t pipeline-demo-api:ci .
+      - name: Smoke-test image
+        run: |
+          docker run --rm -d --name pipeline-demo -p 8000:8000 pipeline-demo-api:ci
+          trap 'docker stop pipeline-demo >/dev/null 2>&1 || true' EXIT
+          bash scripts/smoke_test.sh
+      - name: Scan image with Trivy
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: pipeline-demo-api:ci
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+      - name: Generate CycloneDX SBOM
+        run: >-
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock
+          -v "$PWD:/work" anchore/syft:v1.20.0
+          pipeline-demo-api:ci -o cyclonedx-json=/work/sbom.cdx.json
+      - name: Export image artifact and digest
+        run: |
+          docker image inspect pipeline-demo-api:ci --format='{{.Id}}' > image-digest.txt
+          docker save pipeline-demo-api:ci | gzip > pipeline-demo-api.tar.gz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: container-evidence-${{ github.run_id }}
+          path: |
+            sbom.cdx.json
+            image-digest.txt
+            pipeline-demo-api.tar.gz
+          retention-days: 7

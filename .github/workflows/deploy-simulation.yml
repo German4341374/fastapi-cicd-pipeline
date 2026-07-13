@@ -1,0 +1,46 @@
+name: Deployment Simulation
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Semantic version or image label to simulate
+        required: true
+        default: "0.1.0"
+      rollback_to:
+        description: Optional previous version for rollback simulation
+        required: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: simulated-production
+  cancel-in-progress: false
+
+jobs:
+  simulate:
+    runs-on: ubuntu-24.04
+    environment: simulated-production
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build candidate locally
+        run: docker build --target production -t pipeline-demo-api:simulation .
+      - name: Run local health check
+        run: |
+          docker run --rm -d --name simulated-deployment -p 8000:8000 \
+            -e APP_VERSION='${{ inputs.version }}' pipeline-demo-api:simulation
+          trap 'docker stop simulated-deployment >/dev/null 2>&1 || true' EXIT
+          bash scripts/smoke_test.sh
+      - name: Record simulated deployment
+        env:
+          VERSION: ${{ inputs.version }}
+          ROLLBACK_TO: ${{ inputs.rollback_to }}
+        run: |
+          printf '{"version":"%s","rollback_to":"%s","commit":"%s","simulated":true}\n' \
+            "$VERSION" "$ROLLBACK_TO" "$GITHUB_SHA" > deployment-record.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: deployment-simulation-${{ github.run_id }}
+          path: deployment-record.json
+          retention-days: 30
