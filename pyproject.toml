@@ -19,7 +19,7 @@ dev = [
   "pip-audit==2.8.0",
   "pytest==9.1.1",
   "pytest-cov==6.0.0",
-  "ruff==0.11.2",
+  "ruff==0.16.2",
 ]
 
 [tool.setuptools.packages.find]
