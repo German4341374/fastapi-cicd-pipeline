@@ -3,9 +3,9 @@
 [![Release Pipeline](https://github.com/German4341374/fastapi-cicd-pipeline/actions/workflows/release.yml/badge.svg)](https://github.com/German4341374/fastapi-cicd-pipeline/actions/workflows/release.yml)
 [![Deployment Simulation](https://github.com/German4341374/fastapi-cicd-pipeline/actions/workflows/deploy-simulation.yml/badge.svg)](https://github.com/German4341374/fastapi-cicd-pipeline/actions/workflows/deploy-simulation.yml)
 
-A portfolio repository demonstrating a secure, evidence-producing GitHub Actions CI/CD pipeline.
-The FastAPI service is intentionally small so reviews focus on automation, permissions, release
-policy, supply-chain evidence, and rollback behavior.
+The FastAPI service in this repository is deliberately small. The main work is the delivery
+pipeline: narrow permissions, reusable checks, release gates, supply-chain evidence and a rollback
+path that can be reviewed without cloud credentials.
 
 ## Architecture
 
@@ -134,14 +134,14 @@ provenance before deployment.
 - Tag patterns are validated by a script because GitHub trigger globs are not regular expressions.
 - Actions currently emit a non-fatal warning while official v4/v5 Actions transition runtimes.
 
-## Future improvements
+## Next pipeline changes
 
 - Pin every Action and scanner image by digest and add Renovate policy controls.
 - Add keyless signing, SLSA provenance, SBOM attestations, and verification before simulation.
 - Add protected release environments, required reviewers, and signed-tag enforcement.
 - Add matrix testing for supported Python versions and architecture builds.
 
-## Interview talking points
+## Design questions
 
 - Why reusable workflows prevent PR/release policy drift.
 - Why permissions are job-scoped and publication is tag-gated.
@@ -150,7 +150,7 @@ provenance before deployment.
 - Why artifacts, SBOMs, coverage, and deployment records provide audit evidence.
 - How immutable versions enable rollback without real cloud credentials.
 
-See `DEMO.md`, `INTERVIEW.md`, and `docs/explanations/pipeline-reference.md`.
+See `DEMO.md`, `docs/design-notes.md`, and `docs/explanations/pipeline-reference.md`.
 
 ## License
 
