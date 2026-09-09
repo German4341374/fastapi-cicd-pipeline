@@ -3,9 +3,11 @@
 [![Release Pipeline](https://github.com/German4341374/fastapi-cicd-pipeline/actions/workflows/release.yml/badge.svg)](https://github.com/German4341374/fastapi-cicd-pipeline/actions/workflows/release.yml)
 [![Deployment Simulation](https://github.com/German4341374/fastapi-cicd-pipeline/actions/workflows/deploy-simulation.yml/badge.svg)](https://github.com/German4341374/fastapi-cicd-pipeline/actions/workflows/deploy-simulation.yml)
 
-The FastAPI service in this repository is deliberately small. The main work is the delivery
-pipeline: narrow permissions, reusable checks, release gates, supply-chain evidence and a rollback
-path that can be reviewed without cloud credentials.
+A small FastAPI app with the steps needed to test it, build a Docker image, and publish a release
+through GitHub Actions. The app is simple so it's easy to follow what each workflow does.
+
+You can also try a simulated deployment and walk through a rollback. No cloud account is
+needed for those exercises.
 
 ## Architecture
 
